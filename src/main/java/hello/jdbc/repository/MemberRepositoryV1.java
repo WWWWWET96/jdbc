@@ -1,18 +1,26 @@
 package hello.jdbc.repository;
 
-import hello.jdbc.connection.DBConnectionUtil;
 import hello.jdbc.domain.Member;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.support.JdbcUtils;
 
-import java.net.http.HttpConnectTimeoutException;
+import javax.sql.DataSource;
 import java.sql.*;
 import java.util.NoSuchElementException;
 
 /**
- *JDBC- DriverManager 사용
+ *JDBC- DataSource 사용, JDBC Utils 사용
  */
 @Slf4j
-public class MemberRepositoryV0 {
+public class MemberRepositoryV1 {
+
+    private final DataSource dataSource;
+
+    public MemberRepositoryV1(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+
     public Member save(Member member) throws SQLException {
         String sql = "insert into member(member_id, money) values(?,?)";
 
@@ -33,6 +41,7 @@ public class MemberRepositoryV0 {
             close(con,pstmt,null); //리소스 정리
         }
     }
+
     public Member findById(String memberId) throws SQLException {
         String sql = "select * from member where member_id = ?";
 
@@ -103,30 +112,13 @@ public class MemberRepositoryV0 {
 
     }
     private void close(Connection con, Statement stmt, ResultSet rs){
-        /** stmt.close()에서 error나면 con.close()실행 안되니까 try-catch로 감싸서 호출*/
-        if(rs != null){
-            try {
-                rs.close();
-            } catch (SQLException e) {
-                log.info("error", e);
-            }
-        }
-        if(stmt != null){
-            try {
-                stmt.close();
-            } catch (SQLException e) {
-                log.info("error", e);
-            }
-        }
-        if(con != null){
-            try {
-                con.close();//외부리소스를 쓰는건데, 안 닫아주면 계속 유지되니까 닫아야함
-            } catch (SQLException e) {
-                log.info("error", e);
-            }
-        }
+        JdbcUtils.closeResultSet(rs);
+        JdbcUtils.closeStatement(stmt);
+        JdbcUtils.closeConnection(con);
     }
-    private Connection getConnection() { //함수로 빼두고 사용
-        return DBConnectionUtil.getConnection();
+    private Connection getConnection() throws SQLException {
+        Connection con = dataSource.getConnection();
+        log.info("get connection={}, class={}",con, con.getClass());
+        return con;
     }
 }
